@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { auth } from '@clerk/nextjs/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { creditManager } from '@/lib/credits/manager';
@@ -110,10 +111,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 8. Add job to processing queue (async, don't wait)
-    jobQueue.addJob(job.id).catch((error) => {
-      console.error('Failed to add job to queue:', error);
-    });
+    // 8. Add job to processing queue using waitUntil() to keep serverless function alive
+    waitUntil(
+      jobQueue.addJob(job.id).catch((error) => {
+        console.error('Failed to process job in queue:', error);
+      })
+    );
 
     // 9. Return response immediately (job will process in background)
     return NextResponse.json(
