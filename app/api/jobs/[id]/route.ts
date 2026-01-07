@@ -10,13 +10,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { creditManager } from '@/lib/credits/manager';
+import { storageClient } from '@/lib/storage/client';
 import { Job, JobStatusResponse, AgentType } from '@/types/jobs';
 
 export const dynamic = 'force-dynamic';
 
 /**
+ * Clean up all storage files associated with a job
+ */
+async function cleanupJobStorage(jobId: string, job: any): Promise<void> {
+  try {
+    const result = await storageClient.deleteJobFiles(jobId, job);
+    console.log(`[Cleanup] Storage cleanup: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+    
+    if (result.failed.length > 0) {
+      console.warn(`[Cleanup] Failed to delete storage files:`, result.failed);
+    }
+  } catch (error) {
+    console.error(`[Cleanup] Storage cleanup failed for job ${jobId}:`, error);
+  }
+}
+
+/**
+ * Clean up database records related to a job
+ */
+async function cleanupJobDatabase(supabase: any, jobId: string): Promise<void> {
+  // Delete related credit transactions
+  const { error: transactionError } = await supabase
+    .from('credit_transactions')
+    .delete()
+    .eq('related_job_id', jobId);
+
+  if (transactionError) {
+    console.warn(`[Cleanup] Failed to delete credit transactions:`, transactionError);
+  }
+
+  console.log(`[Cleanup] Cleaned up database records for job ${jobId}`);
+}
+
+/**
  * DELETE /api/jobs/[id]
- * Delete a job and refund credits if job was not completed
+ * Delete a job and clean up all associated data
  */
 export async function DELETE(
   req: NextRequest,
@@ -53,16 +87,26 @@ export async function DELETE(
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    // Refund credits if job was not completed successfully
+    console.log(`[Cleanup] Starting comprehensive cleanup for job ${params.id}`);
+
+    // 1. Clean up storage files
+    await cleanupJobStorage(params.id, job);
+
+    // 2. Clean up database records
+    await cleanupJobDatabase(supabase, params.id);
+
+    // 3. Refund credits if job was not completed successfully
+    let refunded = false;
     if (job.status !== 'completed' && job.credits_used > 0) {
       try {
         await creditManager.refund(user.id, job.credits_used, job.id);
+        refunded = true;
       } catch (refundError) {
         console.error('Failed to refund credits:', refundError);
       }
     }
 
-    // Delete the job
+    // 4. Delete the job record (this should be last due to foreign key constraints)
     const { error: deleteError } = await supabase
       .from('jobs')
       .delete()
@@ -73,7 +117,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete job' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, refunded: job.status !== 'completed' });
+    console.log(`[Cleanup] Successfully deleted job ${params.id} and all associated data`);
+
+    return NextResponse.json({ 
+      success: true, 
+      refunded,
+      message: 'Job and all associated files have been permanently deleted'
+    });
   } catch (error) {
     console.error('Job delete error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

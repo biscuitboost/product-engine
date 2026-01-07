@@ -3,7 +3,7 @@
  * Handles file uploads, downloads, and presigned URL generation
  */
 
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 class StorageClient {
@@ -128,6 +128,92 @@ class StorageClient {
     const randomId = Math.random().toString(36).substring(2, 15);
     const extension = filename.split('.').pop();
     return `uploads/${userId}/${timestamp}-${randomId}.${extension}`;
+  }
+
+  /**
+   * Delete multiple files from storage (batch operation)
+   * @param keys - Array of storage keys to delete
+   * @returns Object with deleted and failed keys
+   */
+  async deleteFiles(keys: string[]): Promise<{ deleted: string[], failed: string[] }> {
+    if (keys.length === 0) {
+      return { deleted: [], failed: [] };
+    }
+
+    try {
+      const result = await this.s3.send(new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: {
+          Objects: keys.map(key => ({ Key: key })),
+          Quiet: false, // Set to false to get response details
+        },
+      }));
+
+      const deleted = result.Deleted?.map(obj => obj.Key!) || [];
+      const failed = result.Errors?.map(err => err.Key!) || [];
+
+      console.log(`[Storage] Batch delete: ${deleted.length} deleted, ${failed.length} failed`);
+      return { deleted, failed };
+    } catch (error) {
+      console.error('[Storage] Batch delete failed:', error);
+      // Fallback to individual deletions
+      return this.deleteFilesIndividually(keys);
+    }
+  }
+
+  /**
+   * Fallback method for individual file deletion
+   * @param keys - Array of storage keys to delete
+   * @returns Object with deleted and failed keys
+   */
+  private async deleteFilesIndividually(keys: string[]): Promise<{ deleted: string[], failed: string[] }> {
+    const deleted: string[] = [];
+    const failed: string[] = [];
+
+    for (const key of keys) {
+      try {
+        await this.s3.send(new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: {
+            Objects: [{ Key: key }],
+          },
+        }));
+        deleted.push(key);
+      } catch (error) {
+        console.warn(`[Storage] Failed to delete ${key}:`, error);
+        failed.push(key);
+      }
+    }
+
+    return { deleted, failed };
+  }
+
+  /**
+   * Delete all files associated with a job
+   * @param jobId - Job ID
+   * @param job - Job object with URLs
+   * @returns Object with deleted and failed keys
+   */
+  async deleteJobFiles(jobId: string, job: any): Promise<{ deleted: string[], failed: string[] }> {
+    const keysToDelete: string[] = [];
+
+    // Add input image if it's stored in our bucket
+    if (job.input_image_url && job.input_image_url.includes(this.publicUrl)) {
+      const key = job.input_image_url.replace(`${this.publicUrl}/`, '');
+      keysToDelete.push(key);
+    }
+
+    // Add stage output files
+    const stages = ['extractor', 'set_designer', 'cinematographer'] as const;
+    for (const stage of stages) {
+      const outputUrl = job[`${stage}_output_url`];
+      if (outputUrl && outputUrl.includes(this.publicUrl)) {
+        const key = outputUrl.replace(`${this.publicUrl}/`, '');
+        keysToDelete.push(key);
+      }
+    }
+
+    return await this.deleteFiles(keysToDelete);
   }
 
   /**
