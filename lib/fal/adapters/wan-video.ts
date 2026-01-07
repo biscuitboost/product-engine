@@ -46,19 +46,20 @@ export class WanVideoAdapter implements ModelAdapter {
 
       console.log('[WanVideo] Calling fal.ai API with prompt:', input.prompt);
 
+      // Note: @fal-ai/serverless-client returns the result directly, not wrapped in { data }
       const result = await fal.subscribe('fal-ai/wan-video/2.1/image-to-video', {
         input: falInput,
         logs: true,
-      }) as { data: WanVideoOutput };
+      }) as WanVideoOutput;
 
-      console.log('[WanVideo] Successfully generated video:', result.data.video.url);
+      console.log('[WanVideo] Successfully generated video:', result.video.url);
 
       return {
-        outputUrl: result.data.video.url,
+        outputUrl: result.video.url,
         metadata: {
-          width: result.data.video.width,
-          height: result.data.video.height,
-          content_type: result.data.video.content_type,
+          width: result.video.width,
+          height: result.video.height,
+          content_type: result.video.content_type,
           duration: input.config.duration || 5,
           fps: input.config.fps || 24,
         },

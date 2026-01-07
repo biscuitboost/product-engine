@@ -59,12 +59,13 @@ export class FluxFillAdapter implements ModelAdapter {
 
       console.log('[FluxFill] Calling fal.ai API with prompt:', input.prompt);
 
+      // Note: @fal-ai/serverless-client returns the result directly, not wrapped in { data }
       const result = await fal.subscribe('fal-ai/flux-pro/v1.1/fill', {
         input: falInput,
         logs: true,
-      }) as { data: FluxFillOutput };
+      }) as FluxFillOutput;
 
-      const outputImage = result.data.images[0];
+      const outputImage = result.images[0];
       console.log('[FluxFill] Successfully generated background:', outputImage.url);
 
       return {

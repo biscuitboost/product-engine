@@ -42,19 +42,20 @@ export class BiRefNetAdapter implements ModelAdapter {
       console.log('[BiRefNet] Calling fal.ai API with input:', falInput);
 
       // Use subscribe() for automatic polling
+      // Note: @fal-ai/serverless-client returns the result directly, not wrapped in { data }
       const result = await fal.subscribe('fal-ai/birefnet/v2', {
         input: falInput,
         logs: true,
-      }) as { data: BiRefNetOutput };
+      }) as BiRefNetOutput;
 
-      console.log('[BiRefNet] Successfully removed background, output:', result.data.image.url);
+      console.log('[BiRefNet] Successfully removed background, output:', result.image.url);
 
       return {
-        outputUrl: result.data.image.url,
+        outputUrl: result.image.url,
         metadata: {
-          width: result.data.image.width,
-          height: result.data.image.height,
-          content_type: result.data.image.content_type,
+          width: result.image.width,
+          height: result.image.height,
+          content_type: result.image.content_type,
         },
       };
     } catch (error) {
