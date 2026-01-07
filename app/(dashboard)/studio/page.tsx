@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { UploadZone } from '@/components/studio/upload-zone';
 import { VibeChipSelector } from '@/components/studio/vibe-chip-selector';
 import { Canvas } from '@/components/studio/canvas';
+import { JobHistory } from '@/components/studio/job-history';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, History } from 'lucide-react';
 import Link from 'next/link';
-import { Vibe } from '@/types/jobs';
+import { Vibe, Job } from '@/types/jobs';
 import { useCredits } from '@/hooks/use-credits';
 import { useJobStatus } from '@/hooks/use-job-status';
+import { useJobs } from '@/hooks/use-jobs';
 
 export default function StudioPage() {
   const [uploadedImageKey, setUploadedImageKey] = useState<string | null>(null);
@@ -19,6 +21,8 @@ export default function StudioPage() {
 
   const { credits, refetch: refetchCredits } = useCredits();
   const { job, isLoading: isLoadingJob } = useJobStatus(currentJobId);
+  const { jobs, isLoading: isLoadingJobs, deleteJob, refetch: refetchJobs } = useJobs();
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleUploadComplete = (imageKey: string) => {
     setUploadedImageKey(imageKey);
@@ -59,6 +63,20 @@ export default function StudioPage() {
     setUploadedImageKey(null);
     setCurrentJobId(null);
     setSelectedVibe('minimalist');
+    refetchJobs();
+  };
+
+  const handleSelectJob = (selectedJob: Job) => {
+    setCurrentJobId(selectedJob.id);
+    setShowHistory(false);
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    const success = await deleteJob(jobId);
+    if (success) {
+      refetchCredits();
+    }
+    return success;
   };
 
   return (
@@ -78,6 +96,15 @@ export default function StudioPage() {
               <h1 className="text-2xl font-bold">Product Ad Studio</h1>
             </div>
             <div className="flex items-center gap-4">
+              <Button
+                onClick={() => setShowHistory(!showHistory)}
+                variant="ghost"
+                size="sm"
+                className="text-gray-400 hover:text-white"
+              >
+                <History className="w-4 h-4 mr-2" />
+                History
+              </Button>
               {currentJobId && (
                 <Button onClick={handleReset} variant="outline" size="sm">
                   New Project
@@ -93,7 +120,27 @@ export default function StudioPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
-        {!currentJobId ? (
+        {showHistory ? (
+          // Job History View
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Job History</h2>
+              <Button
+                onClick={() => setShowHistory(false)}
+                variant="outline"
+                size="sm"
+              >
+                Back to Studio
+              </Button>
+            </div>
+            <JobHistory
+              jobs={jobs}
+              onDelete={handleDeleteJob}
+              onSelect={handleSelectJob}
+              isLoading={isLoadingJobs}
+            />
+          </div>
+        ) : !currentJobId ? (
           // Setup Phase: Upload + Vibe Selection
           <div className="max-w-4xl mx-auto space-y-8">
             {/* Step 1: Upload */}

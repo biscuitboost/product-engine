@@ -9,9 +9,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { creditManager } from '@/lib/credits/manager';
 import { Job, JobStatusResponse, AgentType } from '@/types/jobs';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * DELETE /api/jobs/[id]
+ * Delete a job and refund credits if job was not completed
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    // Get user
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_id', clerkId)
+      .single();
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get job (ensure user owns it)
+    const { data: job, error: fetchError } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchError || !job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // Refund credits if job was not completed successfully
+    if (job.status !== 'completed' && job.credits_used > 0) {
+      try {
+        await creditManager.refund(user.id, job.credits_used, job.id);
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
+    }
+
+    // Delete the job
+    const { error: deleteError } = await supabase
+      .from('jobs')
+      .delete()
+      .eq('id', params.id);
+
+    if (deleteError) {
+      console.error('Failed to delete job:', deleteError);
+      return NextResponse.json({ error: 'Failed to delete job' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, refunded: job.status !== 'completed' });
+  } catch (error) {
+    console.error('Job delete error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
 export async function GET(
   req: NextRequest,
