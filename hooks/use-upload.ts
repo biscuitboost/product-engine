@@ -23,6 +23,8 @@ export function useUpload() {
 
     try {
       // Step 1: Request presigned URL from our API
+      console.log('Requesting presigned URL for:', file.name, file.type, file.size);
+
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         headers: {
@@ -37,10 +39,12 @@ export function useUpload() {
 
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json();
+        console.error('Failed to get presigned URL:', errorData);
         throw new Error(errorData.error || 'Failed to get upload URL');
       }
 
       const { uploadUrl, key, publicUrl } = (await uploadResponse.json()) as UploadResponse;
+      console.log('Got presigned URL, uploading to R2...');
 
       // Step 2: Upload file directly to R2/S3 using presigned URL
       const xhr = new XMLHttpRequest();
@@ -56,18 +60,23 @@ export function useUpload() {
       // Upload promise
       await new Promise<void>((resolve, reject) => {
         xhr.addEventListener('load', () => {
+          console.log('Upload response status:', xhr.status);
           if (xhr.status >= 200 && xhr.status < 300) {
+            console.log('Upload successful!');
             resolve();
           } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
+            console.error('Upload failed:', xhr.status, xhr.responseText);
+            reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
           }
         });
 
-        xhr.addEventListener('error', () => {
-          reject(new Error('Upload failed'));
+        xhr.addEventListener('error', (e) => {
+          console.error('XHR error event:', e);
+          reject(new Error('Upload failed - network error'));
         });
 
         xhr.addEventListener('abort', () => {
+          console.error('Upload aborted');
           reject(new Error('Upload cancelled'));
         });
 
