@@ -15,6 +15,8 @@ import { jobQueue } from '@/lib/queue/manager';
 import { storageClient } from '@/lib/storage/client';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema
 const createJobSchema = z.object({
   input_image_key: z.string().min(1),

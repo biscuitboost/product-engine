@@ -11,6 +11,8 @@ import { auth } from '@clerk/nextjs/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { Job, JobStatusResponse, AgentType } from '@/types/jobs';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }

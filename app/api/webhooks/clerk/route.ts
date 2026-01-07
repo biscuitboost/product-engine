@@ -12,6 +12,8 @@ import { headers } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { WebhookEvent } from '@clerk/nextjs/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   // Get the headers
   const headerPayload = headers();

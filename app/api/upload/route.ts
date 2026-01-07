@@ -8,6 +8,8 @@ import { auth } from '@clerk/nextjs/server';
 import { storageClient } from '@/lib/storage/client';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema
 const uploadRequestSchema = z.object({
   filename: z.string().min(1).max(255),
