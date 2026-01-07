@@ -2,7 +2,7 @@
  * Flux Pro Fill Adapter
  * Stage 2: Set Design (Set Designer Agent)
  *
- * Model: fal-ai/flux-pro/v1.1/fill
+ * Model: fal-ai/flux-pro/v1/fill
  * Purpose: Generate photorealistic background based on vibe prompt
  * Input: Transparent PNG from BiRefNet
  * Output: Composite image with new background
@@ -32,7 +32,7 @@ interface FluxFillOutput {
 
 export class FluxFillAdapter implements ModelAdapter {
   agentType = 'set_designer' as const;
-  modelName = 'fal-ai/flux-pro/v1.1/fill';
+  modelName = 'fal-ai/flux-pro/v1/fill';
 
   async execute(input: AdapterInput): Promise<AdapterOutput> {
     console.log(`[FluxFill] Starting background generation for job ${input.jobId}`);
@@ -60,7 +60,7 @@ export class FluxFillAdapter implements ModelAdapter {
       console.log('[FluxFill] Calling fal.ai API with prompt:', input.prompt);
 
       // Note: @fal-ai/serverless-client returns the result directly, not wrapped in { data }
-      const result = await fal.subscribe('fal-ai/flux-pro/v1.1/fill', {
+      const result = await fal.subscribe('fal-ai/flux-pro/v1/fill', {
         input: falInput,
         logs: true,
       }) as FluxFillOutput;
