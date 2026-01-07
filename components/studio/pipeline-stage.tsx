@@ -67,11 +67,11 @@ export function PipelineStage({ title, status, imageUrl, error, isVideo = false 
 
 function StatusBadge({ status }: { status: StageStatus | 'completed' }) {
   const configs = {
-    pending: { icon: Clock, label: 'Pending', color: 'text-gray-400', bgColor: 'bg-gray-400/10' },
+    pending: { icon: Clock, label: 'Pending', color: 'text-gray-400', bgColor: 'bg-gray-400/10', animate: false },
     processing: { icon: Loader2, label: 'Processing', color: 'text-blue-500', bgColor: 'bg-blue-500/10', animate: true },
-    completed: { icon: CheckCircle, label: 'Completed', color: 'text-green-500', bgColor: 'bg-green-500/10' },
-    failed: { icon: XCircle, label: 'Failed', color: 'text-red-500', bgColor: 'bg-red-500/10' },
-    skipped: { icon: XCircle, label: 'Skipped', color: 'text-gray-500', bgColor: 'bg-gray-500/10' },
+    completed: { icon: CheckCircle, label: 'Completed', color: 'text-green-500', bgColor: 'bg-green-500/10', animate: false },
+    failed: { icon: XCircle, label: 'Failed', color: 'text-red-500', bgColor: 'bg-red-500/10', animate: false },
+    skipped: { icon: XCircle, label: 'Skipped', color: 'text-gray-500', bgColor: 'bg-gray-500/10', animate: false },
   };
 
   const config = configs[status];
