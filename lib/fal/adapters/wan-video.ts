@@ -42,8 +42,8 @@ export class WanVideoAdapter implements ModelAdapter {
     try {
       const falInput: WanVideoInput = {
         image_url: input.inputUrl,
-        prompt: input.prompt || 'Subtle camera movement, cinematic lighting',
-        negative_prompt: input.negativePrompt,
+        prompt: `${input.prompt}. IMPORTANT: Preserve the product exactly as shown, do not modify, alter, or change the product in any way. Only add subtle camera movement and cinematic lighting to the scene while keeping the product perfectly intact.`,
+        negative_prompt: input.negativePrompt ? `${input.negativePrompt}, modifying the product, changing the product appearance, altering product details, product distortion, product color changes, product morphing` : 'modifying the product, changing the product appearance, altering product details, product distortion, product color changes, product morphing',
         num_frames: input.config.num_frames || 81, // ~5 seconds at 16fps
         frames_per_second: input.config.frames_per_second || 16,
         resolution: input.config.resolution || '720p',

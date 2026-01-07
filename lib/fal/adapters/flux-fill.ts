@@ -50,8 +50,8 @@ export class FluxFillAdapter implements ModelAdapter {
       const falInput: FluxFillInput = {
         image_url: input.inputUrl,
         mask_url: maskUrl,
-        prompt: input.prompt,
-        negative_prompt: input.negativePrompt,
+        prompt: `${input.prompt}. IMPORTANT: Preserve the product exactly as shown, do not modify, alter, or change the product in any way. Only generate the background scene around the product.`,
+        negative_prompt: `${input.negativePrompt}, modifying the product, changing the product appearance, altering product details, product distortion, product color changes`,
         num_inference_steps: input.config.num_inference_steps || 30,
         guidance_scale: input.config.guidance_scale || 7.5,
         output_format: input.config.output_format || 'png',
@@ -83,14 +83,31 @@ export class FluxFillAdapter implements ModelAdapter {
   }
 
   /**
-   * Generate a mask from transparent PNG
-   * For BiRefNet output, we can use the same image as mask
-   * or invert the alpha channel to create a proper mask
+   * Generate a proper mask from transparent PNG
+   * Creates a mask where product areas are black (preserve) and transparent areas are white (generate)
    */
   private async generateMaskFromTransparent(imageUrl: string): Promise<string> {
-    // For MVP, we use the same transparent image as mask
-    // Flux Fill will understand the alpha channel
-    // In production, you might want to create an inverted mask for better control
-    return imageUrl;
+    try {
+      console.log('[FluxFill] Generating proper mask from transparent image');
+      
+      // Use fal-ai to create a proper mask by inverting the alpha channel
+      // This ensures product areas are black (protected) and background areas are white (to be generated)
+      const maskResult = await fal.subscribe('fal-ai/image-to-image', {
+        input: {
+          image_url: imageUrl,
+          prompt: 'convert transparency to white mask, make opaque areas black',
+          strength: 1.0,
+          num_inference_steps: 10,
+          guidance_scale: 1.0,
+        },
+      }) as any;
+
+      console.log('[FluxFill] Successfully generated proper mask');
+      return maskResult.images[0].url;
+    } catch (error) {
+      console.error('[FluxFill] Failed to generate mask, falling back to original:', error);
+      // Fallback to original behavior if mask generation fails
+      return imageUrl;
+    }
   }
 }
