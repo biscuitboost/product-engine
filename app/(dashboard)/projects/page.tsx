@@ -105,17 +105,17 @@ export default function ProjectsPage() {
                         <Play className="w-12 h-12 text-white" />
                       </div>
                     </>
-                  ) : job.set_designer_output_url ? (
+                  ) : job.extractor_output_url ? (
                     <Image
-                      src={job.set_designer_output_url}
+                      src={job.extractor_output_url}
                       alt="Project"
                       fill
                       className="object-cover"
                       unoptimized
                     />
-                  ) : job.extractor_output_url ? (
+                  ) : job.set_designer_output_url ? (
                     <Image
-                      src={job.extractor_output_url}
+                      src={job.set_designer_output_url}
                       alt="Project"
                       fill
                       className="object-cover"

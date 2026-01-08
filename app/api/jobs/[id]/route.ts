@@ -186,13 +186,14 @@ export async function GET(
 
 /**
  * Calculate overall progress percentage (0-100)
+ * New workflow: Analyzer → Extractor → Cinematographer
  */
 function calculateProgress(job: Job): number {
   let completed = 0;
   const total = 3;
 
+  if (job.analyzer_status === 'completed') completed++;
   if (job.extractor_status === 'completed') completed++;
-  if (job.set_designer_status === 'completed') completed++;
   if (job.cinematographer_status === 'completed') completed++;
 
   return Math.round((completed / total) * 100);
@@ -200,6 +201,7 @@ function calculateProgress(job: Job): number {
 
 /**
  * Get the currently processing stage
+ * New workflow: Analyzer → Extractor → Cinematographer
  */
 function getCurrentStage(job: Job): AgentType | null {
   // If job is completed or failed, no current stage
@@ -207,15 +209,15 @@ function getCurrentStage(job: Job): AgentType | null {
     return null;
   }
 
-  // Check which stage is currently processing
+  // Check which stage is currently processing (in order)
+  if (job.analyzer_status === 'processing') return 'analyzer';
   if (job.extractor_status === 'processing') return 'extractor';
-  if (job.set_designer_status === 'processing') return 'set_designer';
   if (job.cinematographer_status === 'processing') return 'cinematographer';
 
   // If nothing is processing but job status is "processing",
-  // next stage is about to start
+  // next stage is about to start (in order)
+  if (job.analyzer_status === 'pending') return 'analyzer';
   if (job.extractor_status === 'pending') return 'extractor';
-  if (job.set_designer_status === 'pending') return 'set_designer';
   if (job.cinematographer_status === 'pending') return 'cinematographer';
 
   return null;

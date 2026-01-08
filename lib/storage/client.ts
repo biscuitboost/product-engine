@@ -203,8 +203,8 @@ class StorageClient {
       keysToDelete.push(key);
     }
 
-    // Add stage output files
-    const stages = ['extractor', 'set_designer', 'cinematographer'] as const;
+    // Add stage output files (including new analyzer stage)
+    const stages = ['analyzer', 'extractor', 'set_designer', 'cinematographer'] as const;
     for (const stage of stages) {
       const outputUrl = job[`${stage}_output_url`];
       if (outputUrl && outputUrl.includes(this.publicUrl)) {
@@ -219,13 +219,13 @@ class StorageClient {
   /**
    * Generate a key for job outputs
    * @param jobId - Job ID
-   * @param stage - Pipeline stage (extractor, set_designer, cinematographer)
+   * @param stage - Pipeline stage (analyzer, extractor, set_designer, cinematographer)
    * @param extension - File extension
    * @returns Storage key
    */
   generateJobOutputKey(
     jobId: string,
-    stage: 'extractor' | 'set_designer' | 'cinematographer',
+    stage: 'analyzer' | 'extractor' | 'set_designer' | 'cinematographer',
     extension: string
   ): string {
     return `jobs/${jobId}/${stage}.${extension}`;

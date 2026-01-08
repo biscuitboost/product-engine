@@ -74,9 +74,9 @@ export function JobHistory({ jobs, onDelete, onSelect, isLoading }: JobHistoryPr
             <div className="w-16 h-16 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
               {job.cinematographer_output_url ? (
                 <Video className="w-full h-full p-4 text-gray-600" />
-              ) : job.set_designer_output_url ? (
+              ) : job.extractor_output_url ? (
                 <img
-                  src={job.set_designer_output_url}
+                  src={job.extractor_output_url}
                   alt="Output"
                   className="w-full h-full object-cover"
                 />

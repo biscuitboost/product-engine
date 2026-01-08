@@ -10,9 +10,10 @@ interface PipelineStageProps {
   imageUrl: string | null;
   error?: string | null;
   isVideo?: boolean;
+  description?: string; // For analyzer stage: shows detected product description
 }
 
-export function PipelineStage({ title, status, imageUrl, error, isVideo = false }: PipelineStageProps) {
+export function PipelineStage({ title, status, imageUrl, error, isVideo = false, description }: PipelineStageProps) {
   return (
     <div className="inline-block w-[400px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
       <div className="bg-gray-900 rounded-lg p-6 border border-gray-800 h-full">
@@ -60,6 +61,14 @@ export function PipelineStage({ title, status, imageUrl, error, isVideo = false 
             </div>
           )}
         </div>
+
+        {/* Product Description (for analyzer stage) */}
+        {description && status === 'completed' && (
+          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <p className="text-xs font-semibold text-blue-400 mb-1">Detected Product:</p>
+            <p className="text-sm text-gray-300">{description}</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -18,8 +18,8 @@ export function Canvas({ job, isLoading }: CanvasProps) {
     if (!job || !scrollContainerRef.current) return;
 
     let scrollToIndex = 0;
-    if (job.extractor_status === 'completed') scrollToIndex = 1;
-    if (job.set_designer_status === 'completed') scrollToIndex = 2;
+    if (job.analyzer_status === 'completed') scrollToIndex = 1;
+    if (job.extractor_status === 'completed') scrollToIndex = 2;
     if (job.cinematographer_status === 'completed') scrollToIndex = 3;
 
     const container = scrollContainerRef.current;
@@ -29,7 +29,7 @@ export function Canvas({ job, isLoading }: CanvasProps) {
       left: targetX,
       behavior: 'smooth',
     });
-  }, [job?.extractor_status, job?.set_designer_status, job?.cinematographer_status]);
+  }, [job?.analyzer_status, job?.extractor_status, job?.cinematographer_status]);
 
   if (!job && isLoading) {
     return (
@@ -78,8 +78,8 @@ export function Canvas({ job, isLoading }: CanvasProps) {
             <span>
               Currently processing:{' '}
               <span className="font-semibold text-white">
+                {job.current_stage === 'analyzer' && 'Analyzing product'}
                 {job.current_stage === 'extractor' && 'Removing background'}
-                {job.current_stage === 'set_designer' && 'Generating scene'}
                 {job.current_stage === 'cinematographer' && 'Creating video'}
               </span>
             </span>
@@ -105,22 +105,23 @@ export function Canvas({ job, isLoading }: CanvasProps) {
 
           <ArrowRight className="w-8 h-8 text-gray-600 self-center flex-shrink-0" />
 
-          {/* Stage 1: Background Removed */}
+          {/* Stage 1: Product Analysis */}
           <PipelineStage
-            title="1. Background Removal"
-            status={job.extractor_status}
-            imageUrl={job.extractor_output_url}
-            error={job.extractor_error}
+            title="1. Product Analysis"
+            status={job.analyzer_status}
+            imageUrl={job.input_image_url}
+            error={job.analyzer_error}
+            description={job.product_description || undefined}
           />
 
           <ArrowRight className="w-8 h-8 text-gray-600 self-center flex-shrink-0" />
 
-          {/* Stage 2: Set Design */}
+          {/* Stage 2: Background Removal */}
           <PipelineStage
-            title="2. Scene Design"
-            status={job.set_designer_status}
-            imageUrl={job.set_designer_output_url}
-            error={job.set_designer_error}
+            title="2. Background Removal"
+            status={job.extractor_status}
+            imageUrl={job.extractor_output_url}
+            error={job.extractor_error}
           />
 
           <ArrowRight className="w-8 h-8 text-gray-600 self-center flex-shrink-0" />
