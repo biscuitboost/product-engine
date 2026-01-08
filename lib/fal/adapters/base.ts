@@ -4,7 +4,7 @@
  * This enables the adapter pattern - swap models without changing code
  */
 
-export type AgentType = 'extractor' | 'set_designer' | 'cinematographer';
+export type AgentType = 'analyzer' | 'extractor' | 'set_designer' | 'cinematographer';
 
 /**
  * Input parameters for model execution

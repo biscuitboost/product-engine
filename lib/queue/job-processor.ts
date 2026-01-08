@@ -1,7 +1,12 @@
 /**
  * Job Processor
  * Core orchestration logic for the 3-stage AI pipeline
- * Processes jobs sequentially through: Extractor → Set Designer → Cinematographer
+ * Processes jobs sequentially through: Analyzer → Extractor → Cinematographer
+ *
+ * New Workflow:
+ * 1. Analyzer (Florence-2): Analyzes product and generates description
+ * 2. Extractor (BiRefNet): Removes background to isolate product
+ * 3. Cinematographer (Kling Video): Creates video with smart prompts
  */
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -9,6 +14,7 @@ import { switchboard } from '@/lib/fal/switchboard';
 import { storageClient } from '@/lib/storage/client';
 import { creditManager } from '@/lib/credits/manager';
 import { AgentType } from '@/lib/fal/adapters/base';
+import { generateSmartPrompt, getDefaultNegativePrompt } from '@/lib/prompts/smart-generator';
 import pRetry from 'p-retry';
 
 class JobProcessor {
@@ -29,13 +35,13 @@ class JobProcessor {
         .update({ status: 'processing' })
         .eq('id', jobId);
 
-      // Stage 1: Background Removal (Extractor)
+      // Stage 1: Product Analysis (Analyzer - Florence-2)
+      await this.processStage(jobId, 'analyzer');
+
+      // Stage 2: Background Removal (Extractor - BiRefNet)
       await this.processStage(jobId, 'extractor');
 
-      // Stage 2: Set Design (Set Designer)
-      await this.processStage(jobId, 'set_designer');
-
-      // Stage 3: Video Generation (Cinematographer)
+      // Stage 3: Video Generation (Cinematographer - Kling Video)
       await this.processStage(jobId, 'cinematographer');
 
       // Mark job as completed
@@ -126,13 +132,21 @@ class JobProcessor {
     console.log(`[JobProcessor] ✅ Permanent URL: ${permanentUrl}`);
 
     // Update job with stage output
+    const updateData: Record<string, any> = {
+      [`${agentType}_status`]: 'completed',
+      [`${agentType}_output_url`]: permanentUrl,
+      [`${agentType}_completed_at`]: new Date().toISOString(),
+    };
+
+    // If analyzer stage, store product description for smart prompt generation
+    if (agentType === 'analyzer' && output.metadata?.product_description) {
+      updateData.product_description = output.metadata.product_description;
+      console.log(`[JobProcessor] 📝 Stored product description: ${output.metadata.product_description}`);
+    }
+
     await supabase
       .from('jobs')
-      .update({
-        [`${agentType}_status`]: 'completed',
-        [`${agentType}_output_url`]: permanentUrl,
-        [`${agentType}_completed_at`]: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', jobId);
 
     console.log(`[JobProcessor] ✅ Stage ${agentType} completed for job ${jobId}\n`);
@@ -143,12 +157,15 @@ class JobProcessor {
    */
   private getStageInputUrl(job: any, agentType: AgentType): string | null {
     switch (agentType) {
-      case 'extractor':
+      case 'analyzer':
         return job.input_image_url; // Original uploaded image
-      case 'set_designer':
-        return job.extractor_output_url; // Transparent PNG from BiRefNet
+      case 'extractor':
+        return job.analyzer_output_url || job.input_image_url; // Output from analyzer (passthrough)
       case 'cinematographer':
-        return job.set_designer_output_url; // Composite image from Flux Fill
+        return job.extractor_output_url; // Transparent PNG from BiRefNet
+      case 'set_designer':
+        // Deprecated: Only for backwards compatibility with old jobs
+        return job.extractor_output_url;
       default:
         return null;
     }
@@ -161,35 +178,50 @@ class JobProcessor {
     job: any,
     agentType: AgentType
   ): Promise<{ prompt?: string; negativePrompt?: string }> {
-    if (agentType === 'extractor') {
-      // BiRefNet doesn't need prompts
+    // Analyzer and Extractor don't need prompts
+    if (agentType === 'analyzer' || agentType === 'extractor') {
       return {};
     }
 
-    const supabase = createServerSupabaseClient();
+    // Cinematographer uses smart prompt generation based on product description
+    if (agentType === 'cinematographer') {
+      if (job.product_description) {
+        // Generate smart prompt based on product type
+        const smartPrompt = generateSmartPrompt(job.product_description);
+        console.log(`[JobProcessor] 🎯 Generated smart prompt: ${smartPrompt}`);
 
-    // Get vibe prompt from database
-    const { data: vibePrompt } = await supabase
-      .from('vibe_prompts')
-      .select('*')
-      .eq('vibe', job.vibe)
-      .single();
-
-    if (!vibePrompt) {
-      console.warn(`[JobProcessor] ⚠️  No vibe prompt found for vibe: ${job.vibe}`);
-      return {};
+        return {
+          prompt: smartPrompt,
+          negativePrompt: getDefaultNegativePrompt(),
+        };
+      } else {
+        // Fallback to generic prompt if no product description available
+        console.warn(`[JobProcessor] ⚠️  No product description found, using generic prompt`);
+        return {
+          prompt: 'Product showcase, slowly rotating 360 degrees, professional studio lighting with soft shadows, clean background, premium commercial photography style, smooth cinematic motion',
+          negativePrompt: getDefaultNegativePrompt(),
+        };
+      }
     }
 
+    // Set Designer (deprecated, only for backwards compatibility)
     if (agentType === 'set_designer') {
+      const supabase = createServerSupabaseClient();
+
+      const { data: vibePrompt } = await supabase
+        .from('vibe_prompts')
+        .select('*')
+        .eq('vibe', job.vibe)
+        .single();
+
+      if (!vibePrompt) {
+        console.warn(`[JobProcessor] ⚠️  No vibe prompt found for vibe: ${job.vibe}`);
+        return {};
+      }
+
       return {
         prompt: vibePrompt.prompt_template,
         negativePrompt: vibePrompt.negative_prompt,
-      };
-    }
-
-    if (agentType === 'cinematographer') {
-      return {
-        prompt: vibePrompt.cinematographer_prompt,
       };
     }
 
@@ -200,7 +232,18 @@ class JobProcessor {
    * Get file extension for stage output
    */
   private getFileExtension(agentType: AgentType): string {
-    return agentType === 'cinematographer' ? 'mp4' : 'png';
+    switch (agentType) {
+      case 'analyzer':
+        return 'jpg'; // Passthrough of original image
+      case 'extractor':
+        return 'png'; // Transparent PNG
+      case 'cinematographer':
+        return 'mp4'; // Video
+      case 'set_designer':
+        return 'png'; // Deprecated
+      default:
+        return 'png';
+    }
   }
 
   /**

@@ -6,9 +6,11 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { ModelAdapter, AgentType } from './adapters/base';
+import { Florence2Adapter } from './adapters/florence-2';
 import { BiRefNetAdapter } from './adapters/birefnet';
 import { FluxFillAdapter } from './adapters/flux-fill';
 import { WanVideoAdapter } from './adapters/wan-video';
+import { KlingVideoAdapter } from './adapters/kling-video';
 import { ModelConfig } from '@/types/jobs';
 
 export class ModelSwitchboard {
@@ -16,9 +18,14 @@ export class ModelSwitchboard {
 
   constructor() {
     // Register all available adapters
-    this.registerAdapter(new BiRefNetAdapter());
-    this.registerAdapter(new FluxFillAdapter());
-    this.registerAdapter(new WanVideoAdapter());
+    // New workflow adapters
+    this.registerAdapter(new Florence2Adapter()); // Analyzer
+    this.registerAdapter(new BiRefNetAdapter()); // Extractor (updated)
+    this.registerAdapter(new KlingVideoAdapter()); // Cinematographer (new)
+
+    // Legacy adapters (for backwards compatibility)
+    this.registerAdapter(new FluxFillAdapter()); // Set Designer (deprecated)
+    this.registerAdapter(new WanVideoAdapter()); // Cinematographer (deprecated)
   }
 
   /**

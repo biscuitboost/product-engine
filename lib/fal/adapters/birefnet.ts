@@ -1,10 +1,10 @@
 /**
- * BiRefNet V2 Adapter
- * Stage 1: Background Removal (Extractor Agent)
+ * BiRefNet Adapter
+ * Stage 2: Background Removal (Extractor Agent)
  *
- * Model: fal-ai/birefnet/v2
+ * Model: fal-ai/birefnet
  * Purpose: Isolate product from background with pixel-perfect precision
- * Output: Transparent PNG
+ * Output: Transparent PNG with refined foreground
  */
 
 import { fal } from '@/lib/fal/client';
@@ -12,7 +12,9 @@ import { ModelAdapter, AdapterInput, AdapterOutput } from './base';
 
 interface BiRefNetInput {
   image_url: string;
+  model?: string;
   operating_resolution?: string;
+  refine_foreground?: boolean;
   output_format?: string;
 }
 
@@ -27,7 +29,7 @@ interface BiRefNetOutput {
 
 export class BiRefNetAdapter implements ModelAdapter {
   agentType = 'extractor' as const;
-  modelName = 'fal-ai/birefnet/v2';
+  modelName = 'fal-ai/birefnet';
 
   async execute(input: AdapterInput): Promise<AdapterOutput> {
     console.log(`[BiRefNet] Starting background removal for job ${input.jobId}`);
@@ -35,7 +37,9 @@ export class BiRefNetAdapter implements ModelAdapter {
     try {
       const falInput: BiRefNetInput = {
         image_url: input.inputUrl,
+        model: input.config.model || 'General Use (Heavy)',
         operating_resolution: input.config.operating_resolution || '1024x1024',
+        refine_foreground: input.config.refine_foreground !== undefined ? input.config.refine_foreground : true,
         output_format: input.config.output_format || 'png',
       };
 
@@ -43,7 +47,7 @@ export class BiRefNetAdapter implements ModelAdapter {
 
       // Use subscribe() for automatic polling
       // Note: @fal-ai/serverless-client returns the result directly, not wrapped in { data }
-      const result = await fal.subscribe('fal-ai/birefnet/v2', {
+      const result = await fal.subscribe('fal-ai/birefnet', {
         input: falInput,
         logs: true,
       }) as BiRefNetOutput;

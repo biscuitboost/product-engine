@@ -4,7 +4,7 @@
 
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 export type StageStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'skipped';
-export type AgentType = 'extractor' | 'set_designer' | 'cinematographer';
+export type AgentType = 'analyzer' | 'extractor' | 'set_designer' | 'cinematographer';
 export type Vibe = 'minimalist' | 'eco_friendly' | 'high_energy' | 'luxury_noir';
 
 export interface Job {
@@ -14,7 +14,15 @@ export interface Job {
     vibe: Vibe;
     status: JobStatus;
 
-    // Stage 1: Extractor
+    // Stage 1: Analyzer (Florence-2 Caption)
+    analyzer_status: StageStatus;
+    analyzer_output_url: string | null;
+    analyzer_error: string | null;
+    analyzer_model_id: string | null;
+    analyzer_started_at: string | null;
+    analyzer_completed_at: string | null;
+
+    // Stage 2: Extractor (BiRefNet)
     extractor_status: StageStatus;
     extractor_output_url: string | null;
     extractor_error: string | null;
@@ -22,7 +30,7 @@ export interface Job {
     extractor_started_at: string | null;
     extractor_completed_at: string | null;
 
-    // Stage 2: Set Designer
+    // Stage 2 (Deprecated): Set Designer (Flux Fill)
     set_designer_status: StageStatus;
     set_designer_output_url: string | null;
     set_designer_error: string | null;
@@ -30,13 +38,16 @@ export interface Job {
     set_designer_started_at: string | null;
     set_designer_completed_at: string | null;
 
-    // Stage 3: Cinematographer
+    // Stage 3: Cinematographer (Kling Video)
     cinematographer_status: StageStatus;
     cinematographer_output_url: string | null;
     cinematographer_error: string | null;
     cinematographer_model_id: string | null;
     cinematographer_started_at: string | null;
     cinematographer_completed_at: string | null;
+
+    // Product analysis metadata
+    product_description: string | null;
 
     // Metadata
     credits_used: number;
